@@ -30,7 +30,7 @@ export ADMIN_USERNAME=admin
 export ADMIN_PASSWORD=请修改为你的管理员密码
 export HOST=0.0.0.0
 export PORT=4173
-export DATA_DIR=/opt/it-info-website/data
+export DATA_DIR=./data
 export COOKIE_SECURE=false
 export TRUST_PROXY=false
 ```
