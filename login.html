@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Info 导航管理员登录" />
+    <title>Info · 管理员登录</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="login-page">
+    <main class="login-shell">
+      <a class="login-brand" href="./index.html" aria-label="返回导航首页">
+        <span class="brand-glyph">i</span>
+        <span><b>INFO</b><small>团队导航</small></span>
+      </a>
+      <section class="login-panel">
+        <div class="login-heading">
+          <p class="eyebrow">ADMIN ACCESS</p>
+          <h1>登录管理台</h1>
+          <p>验证管理员身份后，才能修改分组、卡片和链接。</p>
+        </div>
+        <form id="login-form" class="login-form">
+          <label><span>用户名</span><input name="username" autocomplete="username" required autofocus /></label>
+          <label><span>密码</span><input name="password" type="password" autocomplete="current-password" required /></label>
+          <p id="login-error" class="login-error" role="alert" hidden></p>
+          <button id="login-submit" class="primary-button" type="submit">登录</button>
+        </form>
+        <a class="login-back" href="./index.html">← 返回只读导航</a>
+      </section>
+      <p class="login-footnote">管理员会话将在一段时间无效后自动退出。</p>
+    </main>
+    <script type="module" src="./src/login.js"></script>
+  </body>
+</html>

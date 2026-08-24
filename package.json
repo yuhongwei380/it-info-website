@@ -1,0 +1,11 @@
+{
+  "name": "info-navigation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs",
+    "hash-password": "node scripts/hash-password.mjs"
+  }
+}

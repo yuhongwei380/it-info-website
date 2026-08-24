@@ -1,0 +1,29 @@
+[Unit]
+Description=Info Navigation Service
+After=network.target
+
+[Service]
+Type=simple
+User=info-nav
+Group=info-nav
+WorkingDirectory=/opt/info-navigation
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/info-navigation.env
+ExecStart=/usr/bin/node /opt/info-navigation/server.mjs
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/info-navigation
+
+[Install]
+WantedBy=multi-user.target

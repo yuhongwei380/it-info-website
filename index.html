@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="团队内部工具与信息入口导航" />
+    <title>Info · 团队导航</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="public-page">
+    <div class="app-shell">
+      <aside class="public-rail" aria-label="分组导航">
+        <a class="brand-mark" href="./index.html" aria-label="Info 首页">
+          <span class="brand-glyph">i</span>
+          <span class="brand-copy"><b class="brand-name">INFO</b><small>团队导航</small></span>
+        </a>
+        <p class="rail-section-label">导航分组</p>
+        <nav id="group-nav" class="group-track"></nav>
+        <a class="rail-admin-link" href="./admin.html" aria-label="进入管理端" title="管理端">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.04 1.56v.1h-2v-.1A1.7 1.7 0 0 0 12.36 18a1.7 1.7 0 0 0-1.88.34l-.06.06L9 16.98l.06-.06A1.7 1.7 0 0 0 9.4 15a1.7 1.7 0 0 0-1.56-1.04h-.1v-2h.1A1.7 1.7 0 0 0 9.4 10a1.7 1.7 0 0 0-.34-1.88L9 8.06l1.42-1.42.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 13.4 5.48v-.1h2v.1A1.7 1.7 0 0 0 16.44 7a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.42 1.42-.06.06A1.7 1.7 0 0 0 19.4 10a1.7 1.7 0 0 0 1.56 1.04h.1v2h-.1A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+          <span>管理导航</span>
+        </a>
+      </aside>
+
+      <main class="public-main">
+        <header class="public-hero">
+          <div class="hero-copy">
+            <p class="eyebrow">TEAM DIRECTORY <span>·</span> 团队工作台</p>
+            <div class="hero-title-block">
+              <h1>团队网址导航</h1>
+              <p class="hero-subtitle">集中查找公司系统、研发环境和常用资源。</p>
+            </div>
+          </div>
+          <div class="hero-meta">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span id="entry-summary">正在读取入口…</span>
+          </div>
+        </header>
+
+        <section class="search-zone" aria-label="搜索导航">
+          <div class="search-box">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+            <input id="search-input" type="search" autocomplete="off" placeholder="搜索系统、工具或关键词…" aria-label="搜索系统、工具或关键词" />
+            <kbd>/</kbd>
+          </div>
+          <button id="clear-search" class="text-button" type="button" hidden>清除搜索</button>
+        </section>
+
+        <div id="directory" class="directory" aria-live="polite"></div>
+        <div id="empty-state" class="empty-state" hidden>
+          <span class="empty-orbit" aria-hidden="true"><i></i></span>
+          <h2>没有找到相关入口</h2>
+          <p>换一个关键词，或联系管理员补充这个资源。</p>
+          <button class="secondary-button" type="button" data-clear-search>清除搜索</button>
+        </div>
+        <footer class="public-footer"><span>INFO DIRECTORY</span><span>让信息保持在正确的位置。</span></footer>
+      </main>
+    </div>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
