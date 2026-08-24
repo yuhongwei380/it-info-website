@@ -121,7 +121,7 @@ svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: 
 .rail-admin-link:hover { background: var(--paper-inset); color: var(--graphite); }
 .rail-admin-link:focus-visible, .track-item:focus-visible { outline: 3px solid rgba(49, 87, 220, .2); outline-offset: 2px; }
 
-.public-main { width: min(1600px, calc(100% - 224px)); margin-left: 224px; padding: 0 40px; }
+.public-main { width: calc(100% - 224px); margin-left: 224px; padding: 0 40px; }
 .public-hero { display: flex; min-height: 142px; align-items: center; justify-content: space-between; gap: 32px; padding: 28px 0 24px; border-bottom: 1px solid var(--line); }
 .hero-copy { display: flex; min-width: 0; flex-direction: column; gap: 10px; }
 .hero-title-block { display: flex; align-items: baseline; gap: 18px; }
