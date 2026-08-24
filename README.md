@@ -10,6 +10,26 @@
 
 ## 最简单的启动方法
 
+### 一键安装为后台服务
+
+在 Linux 项目目录中执行：
+
+```bash
+bash install.sh
+```
+
+脚本会自动识别当前用户、项目路径和 Node.js 路径，创建 `.env`（已有文件不会覆盖），并安装、启动及启用开机自启的 `info-navigation` systemd 服务。不要使用 `sudo bash install.sh`；脚本会在需要时自行请求 sudo 权限。
+
+安装完成后的常用命令：
+
+```bash
+sudo systemctl status info-navigation
+sudo journalctl -u info-navigation -f
+sudo systemctl restart info-navigation
+```
+
+### 前台启动
+
 进入项目目录：
 
 ```bash
