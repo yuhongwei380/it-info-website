@@ -15,10 +15,10 @@
 在 Linux 项目目录中执行：
 
 ```bash
-sudo bash install.sh
+bash install.sh
 ```
 
-脚本会自动识别发起 sudo 的普通用户、项目绝对路径和 Node.js/NVM 路径，创建 `.env`（已有文件不会覆盖），并安装、启动及启用开机自启的 `info-navigation` systemd 服务。直接使用 `bash install.sh` 时会提示改用 sudo。
+脚本会自动识别当前用户、项目绝对路径和 Node.js/NVM 路径，创建 `.env`（已有文件不会覆盖），并安装、启动及启用开机自启的 `info-navigation` systemd 服务。安装 systemd 服务时脚本会自动调用 sudo 并提示输入 Linux 系统密码，不要使用 `sudo bash install.sh`。
 
 安装过程中出现 `[sudo] password for ...` 时，应输入当前 Linux 系统账户的登录密码，而不是网站后台管理员密码。密码输入期间终端不会显示字符。如果账户仅使用 SSH 密钥登录或没有 sudo 权限，需要由服务器管理员完成授权。
 

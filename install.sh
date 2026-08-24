@@ -21,13 +21,13 @@ fail() {
 [[ ! "${SCRIPT_DIR}" =~ [[:space:]] ]] || fail "项目路径不能包含空格或制表符：${SCRIPT_DIR}"
 [[ -f "${SCRIPT_DIR}/server.mjs" ]] || fail "未在脚本目录找到 server.mjs。"
 command -v systemctl >/dev/null 2>&1 || fail "系统未安装或未使用 systemd。"
+command -v sudo >/dev/null 2>&1 || fail "未找到 sudo，请先安装 sudo 或让服务器管理员安装服务。"
 
-if [[ "${EUID}" -ne 0 ]]; then
-  fail "安装 systemd 服务需要 root 权限，请执行：sudo bash install.sh"
+if [[ "${EUID}" -eq 0 ]]; then
+  fail "请使用实际运行服务的普通用户执行：bash install.sh（脚本会在需要时自动调用 sudo）。"
 fi
 
-INSTALL_USER="${SUDO_USER:-}"
-[[ -n "${INSTALL_USER}" && "${INSTALL_USER}" != "root" ]] || fail "请从实际运行服务的普通用户执行：sudo bash install.sh"
+INSTALL_USER="$(id -un)"
 INSTALL_GROUP="$(id -gn "${INSTALL_USER}")"
 INSTALL_HOME="$(getent passwd "${INSTALL_USER}" | cut -d: -f6)"
 [[ -n "${INSTALL_HOME}" ]] || fail "无法确定用户 ${INSTALL_USER} 的主目录。"
@@ -60,7 +60,7 @@ for candidate in "${node_candidates[@]}"; do
   fi
 done
 
-[[ -n "${NODE_BIN}" ]] || fail "未找到 Node.js 18+。如果 Node 安装在自定义路径，请执行：sudo INFO_NAV_NODE=\"$(command -v node 2>/dev/null || printf '/path/to/node')\" bash install.sh"
+[[ -n "${NODE_BIN}" ]] || fail "未找到 Node.js 18+。如果 Node 安装在自定义路径，请执行：INFO_NAV_NODE=\"/path/to/node\" bash install.sh"
 [[ ! "${NODE_BIN}" =~ [[:space:]] ]] || fail "Node.js 路径不能包含空格或制表符：${NODE_BIN}"
 
 info "项目目录：${SCRIPT_DIR}"
@@ -107,7 +107,6 @@ if [[ ! -f "${SCRIPT_DIR}/.env" ]]; then
     printf 'export TRUST_PROXY=false\n'
   } > "${SCRIPT_DIR}/.env"
   chmod 600 "${SCRIPT_DIR}/.env"
-  chown "${INSTALL_USER}:${INSTALL_GROUP}" "${SCRIPT_DIR}/.env"
 
   if [[ "${admin_username}" == "admin" && "${admin_password}" == "admin" ]]; then
     printf '\n\033[1;33m[WARN]\033[0m 当前仍为 admin/admin，请尽快修改 .env 后重启服务。\n' >&2
@@ -116,7 +115,6 @@ if [[ ! -f "${SCRIPT_DIR}/.env" ]]; then
 else
   info "检测到已有 .env，保留现有管理员配置。"
   chmod 600 "${SCRIPT_DIR}/.env"
-  chown "${INSTALL_USER}:${INSTALL_GROUP}" "${SCRIPT_DIR}/.env"
   if grep -Eq '^[[:space:]]*(export[[:space:]]+)?ADMIN_PASSWORD[[:space:]]*=[[:space:]]*admin[[:space:]]*$' "${SCRIPT_DIR}/.env"; then
     printf '\n\033[1;33m[WARN]\033[0m .env 当前仍使用默认密码 admin，请尽快修改。\n' >&2
   fi
@@ -124,7 +122,6 @@ fi
 
 mkdir -p "${SCRIPT_DIR}/data"
 chmod 700 "${SCRIPT_DIR}/data"
-chown -R "${INSTALL_USER}:${INSTALL_GROUP}" "${SCRIPT_DIR}/data"
 
 temporary_service="$(mktemp)"
 trap 'rm -f "${temporary_service}"' EXIT
@@ -151,16 +148,22 @@ trap 'rm -f "${temporary_service}"' EXIT
   printf 'WantedBy=multi-user.target\n'
 } > "${temporary_service}"
 
-install -m 0644 "${temporary_service}" "${SERVICE_FILE}"
-systemctl daemon-reload
-if command -v systemd-analyze >/dev/null 2>&1 && ! systemd-analyze verify "${SERVICE_FILE}"; then
+info "安装 systemd 服务需要 sudo 权限。"
+printf '请输入 Linux 系统账户 %s 的登录密码（不是网站管理员密码，输入时不会显示字符）。\n' "${INSTALL_USER}"
+if ! sudo -v; then
+  fail "sudo 验证失败。请确认输入的是 ${INSTALL_USER} 的 Linux 登录密码，并确认该账户具有 sudo 权限。"
+fi
+
+sudo install -m 0644 "${temporary_service}" "${SERVICE_FILE}"
+sudo systemctl daemon-reload
+if command -v systemd-analyze >/dev/null 2>&1 && ! sudo systemd-analyze verify "${SERVICE_FILE}"; then
   fail "systemd 服务文件校验失败，请检查上方错误信息。"
 fi
-systemctl enable "${SERVICE_NAME}" >/dev/null
-systemctl restart "${SERVICE_NAME}"
+sudo systemctl enable "${SERVICE_NAME}" >/dev/null
+sudo systemctl restart "${SERVICE_NAME}"
 sleep 1
 
-if systemctl is-active --quiet "${SERVICE_NAME}"; then
+if sudo systemctl is-active --quiet "${SERVICE_NAME}"; then
   port="$(sed -nE 's/^[[:space:]]*(export[[:space:]]+)?PORT[[:space:]]*=[[:space:]]*([^#[:space:]]+).*$/\2/p' "${SCRIPT_DIR}/.env" | head -n 1)"
   port="${port:-4173}"
   printf '\n\033[1;32m安装完成。\033[0m\n'
@@ -171,6 +174,6 @@ if systemctl is-active --quiet "${SERVICE_NAME}"; then
   printf '重启服务：sudo systemctl restart %s\n' "${SERVICE_NAME}"
 else
   printf '\n服务启动失败，最近日志如下：\n' >&2
-  journalctl -u "${SERVICE_NAME}" -n 50 --no-pager >&2
+  sudo journalctl -u "${SERVICE_NAME}" -n 50 --no-pager >&2
   exit 1
 fi
