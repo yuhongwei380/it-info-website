@@ -3,7 +3,8 @@
 set -Eeuo pipefail
 
 SERVICE_NAME="info-navigation"
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+SCRIPT_PATH="$(readlink -f -- "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname -- "${SCRIPT_PATH}")"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
 info() {
@@ -15,29 +16,52 @@ fail() {
   exit 1
 }
 
-escape_systemd_value() {
-  local value="$1"
-  value="${value//\\/\\\\}"
-  value="${value//\"/\\\"}"
-  printf '%s' "$value"
-}
-
 [[ "$(uname -s)" == "Linux" ]] || fail "该安装脚本仅支持 Linux。"
+[[ "${SCRIPT_DIR}" == /* ]] || fail "无法解析项目的绝对路径：${SCRIPT_DIR}"
+[[ ! "${SCRIPT_DIR}" =~ [[:space:]] ]] || fail "项目路径不能包含空格或制表符：${SCRIPT_DIR}"
 [[ -f "${SCRIPT_DIR}/server.mjs" ]] || fail "未在脚本目录找到 server.mjs。"
 command -v systemctl >/dev/null 2>&1 || fail "系统未安装或未使用 systemd。"
-command -v sudo >/dev/null 2>&1 || fail "未找到 sudo，请先安装 sudo 或让管理员安装服务。"
 
-if [[ "${EUID}" -eq 0 ]]; then
-  fail "请使用实际运行服务的普通用户执行：bash install.sh（脚本会自行调用 sudo）。"
+if [[ "${EUID}" -ne 0 ]]; then
+  fail "安装 systemd 服务需要 root 权限，请执行：sudo bash install.sh"
 fi
 
-INSTALL_USER="$(id -un)"
-INSTALL_GROUP="$(id -gn)"
-NODE_BIN="$(command -v node || true)"
-[[ -n "${NODE_BIN}" ]] || fail "未找到 node，请先为当前用户安装 Node.js 18 或更高版本。"
-NODE_BIN="$(readlink -f "${NODE_BIN}")"
-NODE_MAJOR="$("${NODE_BIN}" -p 'Number(process.versions.node.split(".")[0])')"
-[[ "${NODE_MAJOR}" =~ ^[0-9]+$ && "${NODE_MAJOR}" -ge 18 ]] || fail "需要 Node.js 18 或更高版本。"
+INSTALL_USER="${SUDO_USER:-}"
+[[ -n "${INSTALL_USER}" && "${INSTALL_USER}" != "root" ]] || fail "请从实际运行服务的普通用户执行：sudo bash install.sh"
+INSTALL_GROUP="$(id -gn "${INSTALL_USER}")"
+INSTALL_HOME="$(getent passwd "${INSTALL_USER}" | cut -d: -f6)"
+[[ -n "${INSTALL_HOME}" ]] || fail "无法确定用户 ${INSTALL_USER} 的主目录。"
+
+NODE_BIN=""
+node_candidates=()
+[[ -n "${INFO_NAV_NODE:-}" ]] && node_candidates+=("${INFO_NAV_NODE}")
+
+shopt -s nullglob
+nvm_nodes=("${INSTALL_HOME}"/.nvm/versions/node/*/bin/node)
+shopt -u nullglob
+if [[ "${#nvm_nodes[@]}" -gt 0 ]]; then
+  latest_nvm_node="$(printf '%s\n' "${nvm_nodes[@]}" | sort -V | tail -n 1)"
+  node_candidates+=("${latest_nvm_node}")
+fi
+
+node_candidates+=(
+  "${INSTALL_HOME}/.volta/bin/node"
+  "${INSTALL_HOME}/.local/share/fnm/aliases/default/bin/node"
+  "$(command -v node || true)"
+)
+
+for candidate in "${node_candidates[@]}"; do
+  [[ -n "${candidate}" && -x "${candidate}" ]] || continue
+  candidate="$(readlink -f -- "${candidate}")"
+  candidate_major="$("${candidate}" -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || true)"
+  if [[ "${candidate_major}" =~ ^[0-9]+$ && "${candidate_major}" -ge 18 ]]; then
+    NODE_BIN="${candidate}"
+    break
+  fi
+done
+
+[[ -n "${NODE_BIN}" ]] || fail "未找到 Node.js 18+。如果 Node 安装在自定义路径，请执行：sudo INFO_NAV_NODE=\"$(command -v node 2>/dev/null || printf '/path/to/node')\" bash install.sh"
+[[ ! "${NODE_BIN}" =~ [[:space:]] ]] || fail "Node.js 路径不能包含空格或制表符：${NODE_BIN}"
 
 info "项目目录：${SCRIPT_DIR}"
 info "运行用户：${INSTALL_USER}"
@@ -83,6 +107,7 @@ if [[ ! -f "${SCRIPT_DIR}/.env" ]]; then
     printf 'export TRUST_PROXY=false\n'
   } > "${SCRIPT_DIR}/.env"
   chmod 600 "${SCRIPT_DIR}/.env"
+  chown "${INSTALL_USER}:${INSTALL_GROUP}" "${SCRIPT_DIR}/.env"
 
   if [[ "${admin_username}" == "admin" && "${admin_password}" == "admin" ]]; then
     printf '\n\033[1;33m[WARN]\033[0m 当前仍为 admin/admin，请尽快修改 .env 后重启服务。\n' >&2
@@ -91,6 +116,7 @@ if [[ ! -f "${SCRIPT_DIR}/.env" ]]; then
 else
   info "检测到已有 .env，保留现有管理员配置。"
   chmod 600 "${SCRIPT_DIR}/.env"
+  chown "${INSTALL_USER}:${INSTALL_GROUP}" "${SCRIPT_DIR}/.env"
   if grep -Eq '^[[:space:]]*(export[[:space:]]+)?ADMIN_PASSWORD[[:space:]]*=[[:space:]]*admin[[:space:]]*$' "${SCRIPT_DIR}/.env"; then
     printf '\n\033[1;33m[WARN]\033[0m .env 当前仍使用默认密码 admin，请尽快修改。\n' >&2
   fi
@@ -98,11 +124,8 @@ fi
 
 mkdir -p "${SCRIPT_DIR}/data"
 chmod 700 "${SCRIPT_DIR}/data"
+chown -R "${INSTALL_USER}:${INSTALL_GROUP}" "${SCRIPT_DIR}/data"
 
-escaped_project="$(escape_systemd_value "${SCRIPT_DIR}")"
-escaped_node="$(escape_systemd_value "${NODE_BIN}")"
-escaped_user="$(escape_systemd_value "${INSTALL_USER}")"
-escaped_group="$(escape_systemd_value "${INSTALL_GROUP}")"
 temporary_service="$(mktemp)"
 trap 'rm -f "${temporary_service}"' EXIT
 
@@ -112,12 +135,12 @@ trap 'rm -f "${temporary_service}"' EXIT
   printf 'After=network.target\n\n'
   printf '[Service]\n'
   printf 'Type=simple\n'
-  printf 'User="%s"\n' "${escaped_user}"
-  printf 'Group="%s"\n' "${escaped_group}"
-  printf 'WorkingDirectory="%s"\n' "${escaped_project}"
+  printf 'User=%s\n' "${INSTALL_USER}"
+  printf 'Group=%s\n' "${INSTALL_GROUP}"
+  printf 'WorkingDirectory=%s\n' "${SCRIPT_DIR}"
   printf 'Environment=NODE_ENV=production\n'
-  printf 'Environment="DATA_DIR=%s/data"\n' "${escaped_project}"
-  printf 'ExecStart="%s" "%s/server.mjs"\n' "${escaped_node}" "${escaped_project}"
+  printf 'Environment=DATA_DIR=%s/data\n' "${SCRIPT_DIR}"
+  printf 'ExecStart=%s %s/server.mjs\n' "${NODE_BIN}" "${SCRIPT_DIR}"
   printf 'Restart=on-failure\n'
   printf 'RestartSec=3\n'
   printf 'TimeoutStopSec=15\n'
@@ -128,15 +151,16 @@ trap 'rm -f "${temporary_service}"' EXIT
   printf 'WantedBy=multi-user.target\n'
 } > "${temporary_service}"
 
-info "需要 sudo 权限来安装 systemd 服务。"
-sudo -v
-sudo install -m 0644 "${temporary_service}" "${SERVICE_FILE}"
-sudo systemctl daemon-reload
-sudo systemctl enable "${SERVICE_NAME}" >/dev/null
-sudo systemctl restart "${SERVICE_NAME}"
+install -m 0644 "${temporary_service}" "${SERVICE_FILE}"
+systemctl daemon-reload
+if command -v systemd-analyze >/dev/null 2>&1 && ! systemd-analyze verify "${SERVICE_FILE}"; then
+  fail "systemd 服务文件校验失败，请检查上方错误信息。"
+fi
+systemctl enable "${SERVICE_NAME}" >/dev/null
+systemctl restart "${SERVICE_NAME}"
 sleep 1
 
-if sudo systemctl is-active --quiet "${SERVICE_NAME}"; then
+if systemctl is-active --quiet "${SERVICE_NAME}"; then
   port="$(sed -nE 's/^[[:space:]]*(export[[:space:]]+)?PORT[[:space:]]*=[[:space:]]*([^#[:space:]]+).*$/\2/p' "${SCRIPT_DIR}/.env" | head -n 1)"
   port="${port:-4173}"
   printf '\n\033[1;32m安装完成。\033[0m\n'
@@ -147,6 +171,6 @@ if sudo systemctl is-active --quiet "${SERVICE_NAME}"; then
   printf '重启服务：sudo systemctl restart %s\n' "${SERVICE_NAME}"
 else
   printf '\n服务启动失败，最近日志如下：\n' >&2
-  sudo journalctl -u "${SERVICE_NAME}" -n 50 --no-pager >&2
+  journalctl -u "${SERVICE_NAME}" -n 50 --no-pager >&2
   exit 1
 fi
