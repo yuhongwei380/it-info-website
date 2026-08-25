@@ -9,6 +9,20 @@ export function cloneData(data) {
   return JSON.parse(JSON.stringify(data));
 }
 
+export function reorderById(items, movedId, targetId, position = "before") {
+  const originalIndex = items.findIndex((item) => item.id === movedId);
+  if (originalIndex < 0 || movedId === targetId) return false;
+  const [movedItem] = items.splice(originalIndex, 1);
+  let insertionIndex = items.findIndex((item) => item.id === targetId);
+  if (insertionIndex < 0) {
+    items.splice(originalIndex, 0, movedItem);
+    return false;
+  }
+  if (position === "after") insertionIndex += 1;
+  items.splice(insertionIndex, 0, movedItem);
+  return items.findIndex((item) => item.id === movedId) !== originalIndex;
+}
+
 export async function getDirectory() {
   const response = await fetch("/api/directory", {
     headers: { Accept: "application/json" },

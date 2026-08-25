@@ -1,4 +1,4 @@
-import { countDirectory, createId, getDirectory, isValidDirectory, saveDirectory } from "./store.js";
+import { countDirectory, createId, getDirectory, isValidDirectory, reorderById, saveDirectory } from "./store.js";
 
 const elements = {
   groupList: document.querySelector("#admin-group-list"),
@@ -26,6 +26,9 @@ let directory = await getDirectory();
 let selectedGroupId = directory.groups[0]?.id ?? null;
 let editorState = null;
 let saveQueue = Promise.resolve();
+let dragState = null;
+
+const gripIcon = `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"/></svg>`;
 
 function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
@@ -80,11 +83,16 @@ function renderGroupList() {
     return;
   }
   elements.groupList.innerHTML = directory.groups.map((group, index) => `
-    <button class="admin-group-item${group.id === selectedGroupId ? " is-selected" : ""}" type="button" data-group-id="${escapeHtml(group.id)}">
-      <span class="group-order">${String(index + 1).padStart(2, "0")}</span>
-      <span><b>${escapeHtml(group.name)}</b><small>${group.cards.length} 张卡片</small></span>
-      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
-    </button>
+    <div class="admin-group-row${group.id === selectedGroupId ? " is-selected" : ""}" data-reorder-item="group" data-reorder-id="${escapeHtml(group.id)}">
+      <button class="reorder-handle" type="button" draggable="true" data-reorder-handle="group" data-reorder-id="${escapeHtml(group.id)}" aria-label="调整分组“${escapeHtml(group.name)}”的顺序，可拖拽或使用方向键" title="拖拽排序；也可使用方向键">
+        ${gripIcon}
+      </button>
+      <button class="admin-group-item${group.id === selectedGroupId ? " is-selected" : ""}" type="button" data-group-id="${escapeHtml(group.id)}">
+        <span class="group-order">${String(index + 1).padStart(2, "0")}</span>
+        <span><b>${escapeHtml(group.name)}</b><small>${group.cards.length} 张卡片</small></span>
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+    </div>
   `).join("");
 }
 
@@ -117,8 +125,11 @@ function renderCards() {
     return;
   }
   elements.cardList.innerHTML = group.cards.map((card, cardIndex) => `
-    <article class="admin-card" data-card-id="${escapeHtml(card.id)}">
+    <article class="admin-card" data-card-id="${escapeHtml(card.id)}" data-reorder-item="card" data-reorder-id="${escapeHtml(card.id)}">
       <header class="admin-card-header">
+        <button class="reorder-handle card-reorder-handle" type="button" draggable="true" data-reorder-handle="card" data-reorder-id="${escapeHtml(card.id)}" aria-label="调整卡片“${escapeHtml(card.title)}”的顺序，可拖拽或使用上下方向键" title="拖拽排序；也可使用上下方向键">
+          ${gripIcon}
+        </button>
         <div class="admin-card-index">${String(cardIndex + 1).padStart(2, "0")}</div>
         <div class="admin-card-title"><h3>${escapeHtml(card.title)}</h3><p>${escapeHtml(card.description || "暂无卡片说明")}</p></div>
         <span class="link-count-badge">${card.links.length} 个链接</span>
@@ -149,6 +160,84 @@ function render() {
   renderGroupList();
   renderGroupHeader();
   renderCards();
+}
+
+function clearDropIndicators(container) {
+  container.querySelectorAll(".is-drop-before, .is-drop-after, .is-dragging").forEach((item) => {
+    item.classList.remove("is-drop-before", "is-drop-after", "is-dragging");
+  });
+}
+
+function reorderItems(type) {
+  return type === "group" ? directory.groups : selectedGroup()?.cards ?? [];
+}
+
+function focusReorderHandle(container, type, id) {
+  requestAnimationFrame(() => {
+    [...container.querySelectorAll(`[data-reorder-handle="${type}"]`)].find((handle) => handle.dataset.reorderId === id)?.focus();
+  });
+}
+
+function setupReorderContainer(container, type) {
+  container.addEventListener("dragstart", (event) => {
+    const handle = event.target.closest(`[data-reorder-handle="${type}"]`);
+    if (!handle || !container.contains(handle)) return;
+    const item = handle.closest(`[data-reorder-item="${type}"]`);
+    dragState = { type, id: handle.dataset.reorderId };
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", `${type}:${dragState.id}`);
+    if (item && event.dataTransfer.setDragImage) event.dataTransfer.setDragImage(item, 18, 18);
+    requestAnimationFrame(() => item?.classList.add("is-dragging"));
+  });
+
+  container.addEventListener("dragover", (event) => {
+    if (!dragState || dragState.type !== type) return;
+    const target = event.target.closest(`[data-reorder-item="${type}"]`);
+    if (!target || target.dataset.reorderId === dragState.id) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    container.querySelectorAll(".is-drop-before, .is-drop-after").forEach((item) => item.classList.remove("is-drop-before", "is-drop-after"));
+    const bounds = target.getBoundingClientRect();
+    const horizontal = type === "group" && window.matchMedia("(max-width: 760px)").matches;
+    const position = horizontal
+      ? (event.clientX < bounds.left + bounds.width / 2 ? "before" : "after")
+      : (event.clientY < bounds.top + bounds.height / 2 ? "before" : "after");
+    target.classList.add(position === "before" ? "is-drop-before" : "is-drop-after");
+  });
+
+  container.addEventListener("drop", (event) => {
+    if (!dragState || dragState.type !== type) return;
+    const target = event.target.closest(`[data-reorder-item="${type}"]`);
+    if (!target) return;
+    event.preventDefault();
+    const position = target.classList.contains("is-drop-after") ? "after" : "before";
+    const movedId = dragState.id;
+    const changed = reorderById(reorderItems(type), movedId, target.dataset.reorderId, position);
+    dragState = null;
+    clearDropIndicators(container);
+    if (changed) persist(type === "group" ? "分组顺序已保存" : "卡片顺序已保存");
+  });
+
+  container.addEventListener("dragend", () => {
+    dragState = null;
+    clearDropIndicators(container);
+  });
+
+  container.addEventListener("keydown", (event) => {
+    const handle = event.target.closest(`[data-reorder-handle="${type}"]`);
+    if (!handle) return;
+    const direction = ["ArrowUp", "ArrowLeft"].includes(event.key) ? -1 : (["ArrowDown", "ArrowRight"].includes(event.key) ? 1 : 0);
+    if (!direction) return;
+    event.preventDefault();
+    const items = reorderItems(type);
+    const currentIndex = items.findIndex((item) => item.id === handle.dataset.reorderId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= items.length) return;
+    [items[currentIndex], items[nextIndex]] = [items[nextIndex], items[currentIndex]];
+    const movedId = handle.dataset.reorderId;
+    persist(type === "group" ? "分组顺序已保存" : "卡片顺序已保存");
+    focusReorderHandle(container, type, movedId);
+  });
 }
 
 const fieldTemplates = {
@@ -251,6 +340,8 @@ function handleAction(event) {
 
 elements.groupHeader.addEventListener("click", handleAction);
 elements.cardList.addEventListener("click", handleAction);
+setupReorderContainer(elements.groupList, "group");
+setupReorderContainer(elements.cardList, "card");
 document.querySelector("#add-group-button").addEventListener("click", () => openEditor("group", "add"));
 
 document.querySelector("#export-button").addEventListener("click", () => {
