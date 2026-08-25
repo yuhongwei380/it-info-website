@@ -169,14 +169,11 @@ kbd { min-width: 25px; padding: 3px 7px; border: 1px solid var(--line); border-b
 .card-copy h3 { margin: 0 0 5px; font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
 .card-copy p { margin: 0; color: var(--graphite-soft); font-size: 11px; line-height: 1.5; }
 .card-links { display: flex; margin-top: auto; padding-top: 10px; flex-direction: column; gap: 6px; }
-.card-primary-link { display: flex; min-height: 36px; align-items: center; justify-content: space-between; padding: 0 10px; border-radius: 7px; background: var(--graphite); color: white; font-size: 11px; font-weight: 600; transition: background-color 150ms ease-out, transform 100ms ease-out; }
-.card-primary-link:hover { background: var(--signal); }
-.card-primary-link:active { transform: scale(.98); }
-.card-primary-link:focus-visible, .secondary-links a:focus-visible { outline: 3px solid rgba(49, 87, 220, .2); outline-offset: 2px; }
-.card-primary-link svg { width: 17px; }
-.secondary-links { display: flex; flex-wrap: wrap; gap: 6px; }
-.secondary-links a { padding: 5px 8px; border-radius: 6px; background: var(--paper-inset); color: var(--graphite-soft); font-size: 10px; font-weight: 600; }
-.secondary-links a:hover { color: var(--signal); }
+.card-link { display: flex; min-height: 36px; align-items: center; justify-content: space-between; padding: 0 10px; border-radius: 7px; background: var(--graphite); color: white; font-size: 11px; font-weight: 600; transition: background-color 150ms ease-out, transform 100ms ease-out; }
+.card-link:hover { background: var(--signal); }
+.card-link:active { transform: scale(.98); }
+.card-link:focus-visible { outline: 3px solid rgba(49, 87, 220, .2); outline-offset: 2px; }
+.card-link svg { width: 17px; }
 .no-link { color: var(--graphite-faint); font-size: 12px; }
 .empty-state { padding: 90px 24px 140px; text-align: center; }
 .empty-orbit { position: relative; display: inline-grid; width: 70px; height: 70px; margin-bottom: 20px; place-items: center; border: 1px solid var(--line); border-radius: 50%; }

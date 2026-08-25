@@ -48,8 +48,12 @@ function renderNavigation(groups) {
 }
 
 function cardTemplate(card) {
-  const primary = card.links[0];
-  const secondary = card.links.slice(1);
+  const links = card.links.map((link) => `
+    <a class="card-link" href="${safeUrl(link.url)}" target="_blank" rel="noreferrer">
+      <span>${escapeHtml(link.label)}</span>
+      <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg>
+    </a>
+  `).join("");
   return `
     <article class="directory-card">
       <div class="card-topline">
@@ -61,8 +65,7 @@ function cardTemplate(card) {
         <span class="link-total">${card.links.length} 个入口</span>
       </div>
       <div class="card-links">
-        ${primary ? `<a class="card-primary-link" href="${safeUrl(primary.url)}" target="_blank" rel="noreferrer"><span>${escapeHtml(primary.label)}</span><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg></a>` : `<span class="no-link">尚未配置链接</span>`}
-        ${secondary.length ? `<div class="secondary-links">${secondary.map((link) => `<a href="${safeUrl(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a>`).join("")}</div>` : ""}
+        ${links || `<span class="no-link">尚未配置链接</span>`}
       </div>
     </article>
   `;
