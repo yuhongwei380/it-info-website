@@ -120,7 +120,7 @@ const server = createServer(async (request, response) => {
     const content = await readFile(filePath);
     response.writeHead(200, {
       "Content-Type": mimeTypes.get(path.extname(filePath)) || "application/octet-stream",
-      "Cache-Control": pathname.endsWith(".html") ? "no-cache" : "public, max-age=300"
+      "Cache-Control": pathname.endsWith(".html") || path.extname(filePath) === ".js" ? "no-cache" : "public, max-age=300"
     });
     if (request.method === "HEAD") return response.end();
     return response.end(content);
