@@ -1,4 +1,5 @@
 import { defaultDirectory } from "./default-data.js";
+import { isAllowedUrl } from "./urls.js";
 
 export function createId(prefix = "item") {
   if (globalThis.crypto?.randomUUID) return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
@@ -71,7 +72,7 @@ export function isValidDirectory(data) {
       group.cards.every((card) =>
         card && typeof card.id === "string" && typeof card.title === "string" && Array.isArray(card.links) &&
         card.links.every((link) =>
-          link && typeof link.id === "string" && typeof link.label === "string" && typeof link.url === "string"
+          link && typeof link.id === "string" && typeof link.label === "string" && isAllowedUrl(link.url)
         )
       )
     )

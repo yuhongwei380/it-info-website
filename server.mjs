@@ -5,6 +5,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defaultDirectory } from "./src/default-data.js";
+import { isAllowedUrl } from "./src/urls.js";
 
 const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 await loadEnvFile(path.join(rootDirectory, ".env"));
@@ -45,6 +46,7 @@ const staticFiles = new Map([
   ["/src/admin.js", "src/admin.js"],
   ["/src/login.js", "src/login.js"],
   ["/src/store.js", "src/store.js"],
+  ["/src/urls.js", "src/urls.js"],
   ["/src/default-data.js", "src/default-data.js"]
 ]);
 
@@ -185,14 +187,6 @@ function isValidDirectory(data) {
       )
     )
   );
-}
-
-function isAllowedUrl(value) {
-  try {
-    return ["http:", "https:", "mailto:"].includes(new URL(value).protocol);
-  } catch {
-    return false;
-  }
 }
 
 async function readJsonBody(request, limit) {

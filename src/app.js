@@ -1,4 +1,5 @@
 import { countDirectory, getDirectory } from "./store.js";
+import { safeUrl } from "./urls.js";
 
 const directoryElement = document.querySelector("#directory");
 const groupNav = document.querySelector("#group-nav");
@@ -25,15 +26,6 @@ function initials(title) {
   return [...title].slice(0, 2).join("");
 }
 
-function safeUrl(url) {
-  try {
-    const parsed = new URL(url, window.location.href);
-    return ["http:", "https:", "mailto:"].includes(parsed.protocol) ? parsed.href : "#";
-  } catch {
-    return "#";
-  }
-}
-
 function renderNavigation(groups) {
   groupNav.innerHTML = groups.map((group, index) => `
     <a class="track-item${index === 0 ? " is-active" : ""}" href="#group-${escapeHtml(group.id)}" title="${escapeHtml(group.name)}">
@@ -49,7 +41,7 @@ function renderNavigation(groups) {
 
 function cardTemplate(card) {
   const links = card.links.map((link) => `
-    <a class="card-link" href="${safeUrl(link.url)}" target="_blank" rel="noreferrer">
+    <a class="card-link" href="${escapeHtml(safeUrl(link.url))}" target="_blank" rel="noreferrer">
       <span>${escapeHtml(link.label)}</span>
       <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg>
     </a>

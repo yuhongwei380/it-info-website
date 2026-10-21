@@ -1,4 +1,5 @@
 import { countDirectory, createId, getDirectory, isValidDirectory, reorderById, saveDirectory } from "./store.js";
+import { isAllowedUrl, safeUrl } from "./urls.js";
 
 const elements = {
   groupList: document.querySelector("#admin-group-list"),
@@ -36,15 +37,6 @@ function escapeHtml(value = "") {
 
 function selectedGroup() {
   return directory.groups.find((group) => group.id === selectedGroupId);
-}
-
-function safeUrl(url) {
-  try {
-    const parsed = new URL(url, window.location.href);
-    return ["http:", "https:", "mailto:"].includes(parsed.protocol) ? parsed.href : "#";
-  } catch {
-    return "#";
-  }
 }
 
 function showToast(message) {
@@ -250,7 +242,7 @@ const fieldTemplates = {
     <label><span>卡片说明</span><textarea name="description" maxlength="100" rows="3" placeholder="帮助用户快速理解用途">${escapeHtml(value.description || "")}</textarea></label>`,
   link: (value = {}) => `
     <label><span>链接名称</span><input name="label" required maxlength="30" value="${escapeHtml(value.label || "")}" placeholder="例如：查看面板" /></label>
-    <label><span>链接地址</span><input name="url" type="url" required value="${escapeHtml(value.url || "")}" placeholder="https://example.com" /></label>`
+    <label><span>链接地址</span><input name="url" type="text" required maxlength="2048" value="${escapeHtml(value.url || "")}" placeholder="支持网址、相对路径或自定义协议地址" /></label>`
 };
 
 function openEditor(type, mode, context = {}) {
@@ -268,6 +260,10 @@ function openEditor(type, mode, context = {}) {
 }
 
 function applyEditor() {
+  if (editorState.type === "link") {
+    const input = elements.form.elements.namedItem("url");
+    input.setCustomValidity(isAllowedUrl(input.value) ? "" : "请输入有效的链接地址，不支持脚本或数据地址");
+  }
   if (!elements.form.reportValidity()) return false;
   const values = Object.fromEntries(new FormData(elements.form));
   const group = selectedGroup();
@@ -290,6 +286,10 @@ function applyEditor() {
   persist();
   return true;
 }
+
+elements.form.addEventListener("input", (event) => {
+  if (event.target.name === "url") event.target.setCustomValidity("");
+});
 
 elements.form.addEventListener("submit", (event) => {
   event.preventDefault();
